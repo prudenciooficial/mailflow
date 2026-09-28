@@ -21,12 +21,20 @@ router.param('id', uuidParam('id'));
 
 // ── Users ──────────────────────────────────────────────────────────────────────
 
+// The profile photo is stored as a data: URL. Only raster image URLs are passed on: the list
+// renders them in an <img>, and anything else a user managed to store (the column takes any text)
+// is dropped rather than handed to an admin's browser.
+const AVATAR_RE = /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+function safeAvatar(avatar) {
+  return typeof avatar === 'string' && AVATAR_RE.test(avatar) ? avatar : null;
+}
+
 export async function listUsers(req, res) {
   const limit  = Math.min(parseInt(req.query.limit)  || 100, 200);
   const offset = Math.max(parseInt(req.query.offset) || 0,   0);
   const [result, countResult] = await Promise.all([
     query(
-      `SELECT id, username, is_admin, totp_enabled, created_at, last_seen_at, recovery_email,
+      `SELECT id, username, is_admin, totp_enabled, created_at, last_seen_at, recovery_email, avatar,
               password_hash IS NOT NULL AS has_password
          FROM users ORDER BY created_at ASC LIMIT $1 OFFSET $2`,
       [limit, offset],
@@ -43,6 +51,7 @@ export async function listUsers(req, res) {
       lastSeenAt: u.last_seen_at,
       recoveryEmail: u.recovery_email,
       hasPassword: u.has_password,
+      avatar: safeAvatar(u.avatar),
     })),
     total: parseInt(countResult.rows[0].total),
   });

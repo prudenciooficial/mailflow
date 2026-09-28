@@ -29,6 +29,22 @@ beforeEach(() => {
 });
 
 describe('GET /admin/users', () => {
+  it('passes on a profile photo only when it is a raster image data URL', async () => {
+    const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+    const rows = [
+      { id: 'a', username: 'foto', avatar: photo },
+      { id: 'b', username: 'sem', avatar: null },
+      { id: 'c', username: 'html', avatar: 'data:text/html;base64,PHNjcmlwdD4=' },
+      { id: 'd', username: 'svg', avatar: 'data:image/svg+xml;base64,PHN2Zz4=' },
+      { id: 'e', username: 'url', avatar: 'https://tracker.example/pixel.png' },
+    ];
+    query.mockResolvedValueOnce({ rows }).mockResolvedValueOnce({ rows: [{ total: String(rows.length) }] });
+    const res = reply();
+    await listUsers({ query: {} }, res);
+    const avatars = Object.fromEntries(res.json.mock.calls[0][0].users.map(u => [u.username, u.avatar]));
+    expect(avatars).toEqual({ foto: photo, sem: null, html: null, svg: null, url: null });
+  });
+
   it('reports when each user was last seen, and never the password hash', async () => {
     const seen = new Date('2026-09-20T10:00:00Z');
     query
