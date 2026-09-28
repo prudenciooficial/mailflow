@@ -1,7 +1,6 @@
-# Fork-only: builds the pt-BR frontend image whenever the pt-br branch changes.
-# The backend is untouched by the translation, so the official
-# ghcr.io/maathimself/mailflow-backend image keeps being used.
-name: Publish pt-BR frontend to GHCR
+# Fork-only: builds the fork's frontend and backend images whenever the pt-br branch
+# changes. Run both together: the fork's frontend expects the fork's backend.
+name: Publish pt-BR images to GHCR
 
 on:
   push:
@@ -55,5 +54,30 @@ jobs:
           provenance: false
           build-args: |
             VITE_BUILD_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/mailflow-backend
+          tags: |
+            type=raw,value=pt-br
+            type=raw,value=${{ steps.version.outputs.value }}-pt-br
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          provenance: false
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+            APP_VERSION=v${{ steps.version.outputs.value }}-pt-br
           cache-from: type=gha
           cache-to: type=gha,mode=max
