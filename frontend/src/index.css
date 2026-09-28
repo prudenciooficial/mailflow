@@ -718,3 +718,7 @@ body, #root {
   -webkit-user-select: none; user-select: none;
 }
 .mf-pdf-page .textLayer.selecting .endOfContent { top: 0; }
+
+/* PasswordInput draws its own eye button; Edge adds a native reveal button to every password
+   field, which showed two eyes side by side. */
+.mf-password-input::-ms-reveal { display: none; }
