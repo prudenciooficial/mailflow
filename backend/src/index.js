@@ -46,6 +46,7 @@ import { setupWebSocket } from './services/websocket.js';
 import { ImapManager } from './services/imapManager.js';
 import { getUpdateStatus } from './services/updateCheck.js';
 import { recordHttp } from './services/performanceMetrics.js';
+import { flushHeldSends } from './services/sendHold.js';
 
 const packageMeta = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 let buildMeta = {};
@@ -304,7 +305,12 @@ httpServer.listen(PORT, () => {
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received — shutting down gracefully');
+  // A send held for its undo window lives only in this process: deliver it now rather than
+  // lose it with the restart (services/sendHold.js). Bounded to leave room for the rest.
+  const heldSendsFlushed = flushHeldSends(8000)
+    .catch(err => console.error('Flushing held sends failed:', err.message));
   httpServer.close(async () => {
+    await heldSendsFlushed;
     try { await redisClient.quit(); } catch { /* ignore */ }
     process.exit(0);
   });
